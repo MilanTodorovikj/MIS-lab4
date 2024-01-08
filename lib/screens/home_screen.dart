@@ -1,9 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:lab3mis/screens/calendar_screen.dart';
 import 'package:lab3mis/widgets/auth_gate.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../model/Exam.dart';
 import '../widgets/new_exam.dart';
@@ -19,6 +23,104 @@ class _HomeScreenState extends State<HomeScreen> {
   final CollectionReference _itemsCollection = FirebaseFirestore.instance
       .collection('exams');
   List<Exam> _exams = [];
+  static final FlutterLocalNotificationsPlugin _notificationsPlugin = FlutterLocalNotificationsPlugin();
+  String? _deviceToken;
+
+  static void initialize() {
+    // Initialization  setting for android
+    const InitializationSettings initializationSettingsAndroid = InitializationSettings(
+      android: AndroidInitializationSettings('image'),
+    );
+    _notificationsPlugin.initialize(
+      initializationSettingsAndroid,
+      // to handle event when we receive notification
+      onDidReceiveNotificationResponse: (details) {
+        if (details.input != null) {}
+      },
+    );
+  }
+
+  Future<void> _requestNotificationPermission() async {
+    PermissionStatus status = await Permission.notification.request();
+    if (status.isGranted) {
+      print("Notification permission granted");
+    } else if (status.isDenied) {
+      print("Notification permission denied");
+    } else if (status.isPermanentlyDenied) {
+      print("Notification permission permanently denied");
+      // You might want to open the app settings in this case
+      openAppSettings();
+    }
+  }
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    initialize();
+    _requestNotificationPermission();
+
+
+    OneSignal.shared.setAppId("657ac24e-e486-475b-85ab-925e4654ddfc");
+
+    OneSignal.shared.setNotificationOpenedHandler((OSNotificationOpenedResult result) {
+      // Handle notification open
+    });
+
+    FirebaseMessaging.instance.getToken().then((token) {
+      _deviceToken = token;
+    });
+
+    // To initialise when app is not terminated
+    FirebaseMessaging.instance.getInitialMessage().then((message) {
+      // Handle initial message
+    });
+
+    FirebaseMessaging.onMessage.listen((message) {
+      if (message.notification != null) {
+        display(message);
+      }
+    });
+
+  }
+
+  Future<void> requestPermission() async {
+    await OneSignal.shared.promptUserForPushNotificationPermission();
+  }
+
+
+
+  static Future<void> display(RemoteMessage message) async {
+    // To display the notification in device
+    try {
+      print(message.notification!.android!.sound);
+      final id = DateTime
+          .now()
+          .millisecondsSinceEpoch ~/ 1000;
+      NotificationDetails notificationDetails = NotificationDetails(
+        android: AndroidNotificationDetails(
+            message.notification!.android!.sound ?? "Channel Id",
+            message.notification!.android!.sound ?? "Main Channel",
+            groupKey: "gfg",
+            color: Colors.green,
+            importance: Importance.max,
+            sound: RawResourceAndroidNotificationSound(
+                message.notification!.android!.sound ?? "gfg"),
+
+            // different sound for
+            // different notification
+            playSound: true,
+            priority: Priority.high),
+      );
+      await _notificationsPlugin.show(id, message.notification?.title,
+          message.notification?.body, notificationDetails,
+          payload: message.data['route']);
+    } catch (e) {
+      debugPrint(e.toString());
+    }
+  }
+
+
 
   void _addExam() {
     showModalBottomSheet(
@@ -34,9 +136,61 @@ class _HomeScreenState extends State<HomeScreen> {
         });
   }
 
-  void _addNewExamToDatabase(String subject, DateTime date, TimeOfDay time) {
+  void _addNewExamToDatabase(String subject, DateTime date, TimeOfDay time) async {
+    String topic = 'exams'; // Use a meaningful topic name
+
+    FirebaseMessaging.instance.subscribeToTopic(topic);
+
+    try {
+      var deviceState = await OneSignal.shared.getDeviceState();
+      String? playerId = deviceState?.userId;
+
+
+
+      if (playerId != null && playerId.isNotEmpty) {
+        print("playerId:"+playerId);
+        List<String> playerIds = [playerId];
+
+        try {
+          await OneSignal.shared.postNotification(OSCreateNotification(
+            playerIds: playerIds,
+            content: "You have a new exam: $subject",
+            heading: "New Exam Added",
+          ));
+        } catch (e) {
+          print("Error posting notification: $e");
+        }
+      } else {
+        print("Player ID is null or empty.");
+      }
+    } catch (e) {
+      // Handle errors
+      print("Error getting device state: $e");
+    }
+
     addExam(subject, date, time);
   }
+
+  // void _sendNotification(String title, String body) {
+  //   if (_deviceToken != null) {
+  //
+  //     // Note: This sends a local notification, not an FCM push notification
+  //     final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  //     NotificationDetails notificationDetails = NotificationDetails(
+  //       android: AndroidNotificationDetails(
+  //         'exams',
+  //         'exams',
+  //         groupKey: 'exams',
+  //         color: Colors.green,
+  //         importance: Importance.max,
+  //         playSound: true,
+  //         priority: Priority.high,
+  //       ),
+  //     );
+  //
+  //     _notificationsPlugin.show(id, title, body, notificationDetails);
+  //   }
+  // }
 
 
   Future<void> addExam(String subject, DateTime date, TimeOfDay time) {
