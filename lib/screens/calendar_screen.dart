@@ -2,8 +2,10 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '../model/Exam.dart';
 import '../widgets/auth_gate.dart';
@@ -31,7 +33,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Future<void> _loadExams() async {
     QuerySnapshot<Map<String, dynamic>> querySnapshot =
-    await _itemsCollection.get() as QuerySnapshot<Map<String, dynamic>>;
+    await _itemsCollection.where('userId', isEqualTo: FirebaseAuth.instance.currentUser?.uid).get() as QuerySnapshot<Map<String, dynamic>>;
 
     _exams = querySnapshot.docs
         .map((DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -73,7 +75,38 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  void _addNewExamToDatabase(String subject, DateTime date, TimeOfDay time) {
+  void _addNewExamToDatabase(String subject, DateTime date, TimeOfDay time) async {
+    String topic = 'exams'; // Use a meaningful topic name
+
+    FirebaseMessaging.instance.subscribeToTopic(topic);
+
+    try {
+      var deviceState = await OneSignal.shared.getDeviceState();
+      String? playerId = deviceState?.userId;
+
+
+
+      if (playerId != null && playerId.isNotEmpty) {
+        print("playerId:"+playerId);
+        List<String> playerIds = [playerId];
+
+        try {
+          await OneSignal.shared.postNotification(OSCreateNotification(
+            playerIds: playerIds,
+            content: "You have a new exam: $subject",
+            heading: "New Exam Added",
+          ));
+        } catch (e) {
+          print("Error posting notification: $e");
+        }
+      } else {
+        print("Player ID is null or empty.");
+      }
+    } catch (e) {
+      // Handle errors
+      print("Error getting device state: $e");
+    }
+
     addExam(subject, date, time);
   }
 

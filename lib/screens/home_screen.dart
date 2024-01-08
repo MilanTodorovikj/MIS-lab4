@@ -171,27 +171,6 @@ class _HomeScreenState extends State<HomeScreen> {
     addExam(subject, date, time);
   }
 
-  // void _sendNotification(String title, String body) {
-  //   if (_deviceToken != null) {
-  //
-  //     // Note: This sends a local notification, not an FCM push notification
-  //     final id = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-  //     NotificationDetails notificationDetails = NotificationDetails(
-  //       android: AndroidNotificationDetails(
-  //         'exams',
-  //         'exams',
-  //         groupKey: 'exams',
-  //         color: Colors.green,
-  //         importance: Importance.max,
-  //         playSound: true,
-  //         priority: Priority.high,
-  //       ),
-  //     );
-  //
-  //     _notificationsPlugin.show(id, title, body, notificationDetails);
-  //   }
-  // }
-
 
   Future<void> addExam(String subject, DateTime date, TimeOfDay time) {
     User? user = FirebaseAuth.instance.currentUser;
