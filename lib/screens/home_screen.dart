@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:lab3mis/screens/calendar_screen.dart';
 import 'package:lab3mis/widgets/auth_gate.dart';
 
 import '../model/Exam.dart';
@@ -75,6 +76,16 @@ class _HomeScreenState extends State<HomeScreen> {
       print('Error during sign out: $e');
       // Handle the error
     }
+  }
+
+
+  void _goToCalendar() {
+    print("calendar button pressed");
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (context) =>
+                CalendarScreen()));
   }
 
 
@@ -155,6 +166,23 @@ class _HomeScreenState extends State<HomeScreen> {
     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
     crossAxisCount: 2),
     );
-    }));
+    }),
+      floatingActionButton: Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        ElevatedButton(
+            onPressed: _goToCalendar,
+            style: const ButtonStyle(
+              backgroundColor:
+              MaterialStatePropertyAll<Color>(Colors.limeAccent),
+            ),
+            child: const Row(
+              children: [Text("View calendar",
+                style: TextStyle(color: Colors.red),),
+                Icon(Icons.calendar_today, color: Colors.red,)],
+            ))
+      ],
+    )
+    );
     }
   }
